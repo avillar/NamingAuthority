@@ -11,6 +11,8 @@ import os.path
 from rdflib import Graph
 from rdflib.namespace import DC, DCTERMS, SKOS, OWL, RDF, RDFS, XSD, DCAT
 from pyld import jsonld
+import jq
+from jsonpath_ng.ext import parse as jsonpathparse
 # load the document register as JSON via a JSON-LD conversion
 
 DOCSURL = "https://docs.google.com/spreadsheets/d/"
@@ -33,62 +35,64 @@ def init_graph() -> Graph:
     g.bind("prov", "http://www.w3.org/ns/prov#")
     return g
 
-DOCCONTEXT = '''
-  "@context": [ "http://defs-dev.opengis.net/ogc-na/definitions/profiles/resources/dcterms.jsonld" ,
-               
-               "http://defs-dev.opengis.net/ogc-na/definitions/profiles/resources/skos.jsonld" ,
-               {
-                 "@vocab": "http://example.org/vocab#",
-                 "type": "http://www.opengis.net/def/metamodel/ogc-na/doctype",
-                 "alternative": "skos:altLabel",
-                 "title": "skos:definition",
-                 "description": "rdfs:comment",
-                 "date": "dct:created",
-                 "URL": "rdfs:seeAlso"
-                 }
-                 ]'''
 
-CONTEXT = '''[ "http://defs-dev.opengis.net/ogc-na/definitions/profiles/resources/dcterms.jsonld" ,
+def process_input(data, contextfn):
+    # Load YAML context file
+    from yaml import load
+    try:
+        from yaml import CLoader as Loader
+    except ImportError:
+        from yaml import Loader
+    with open(contextfn, 'r') as f:
+        context = load(f, Loader=Loader)
 
-               "http://defs-dev.opengis.net/ogc-na/definitions/profiles/resources/skos.jsonld" ,
-               { "skos": "http://www.w3.org/2004/02/skos/core#",
-                 "@vocab": "http://example.org/vocab#",
-                 "type": "http://www.opengis.net/def/metamodel/ogc-na/doctype",
-                 "alternative": "skos:altLabel",
-                 "title": "skos:definition",
-                 "description": "rdfs:comment",
-                 "date": "dct:created",
-                 "URL": "rdfs:seeAlso"
-                 }
-                 ]'''
+    # Check if pre-transform necessary
+    transform = context.get('transform')
+    if transform:
+        data = json.loads(jq.compile(transform).input(data).text())
 
-def add_context(data, context):
-    return {
-        '@context': context,
-        '@graph': data
-    }
+    # Add contexts
+    context_list = context.get('context', {})
+    global_context = None
+    for loc, val in context_list.items():
+        if not loc or loc in ['.', '$']:
+            global_context = val
+        else:
+            items = jsonpathparse(loc).find(data)
+            for item in items:
+                item.value['@context'] = val
 
-def main():
+    if global_context:
+        data = {
+            '@context': global_context,
+            '@graph': data,
+        }
+
+    return data
+
+
+def main(inputfn, outputfn, contextfn, base=None):
 
     g = init_graph()
-#    with open("../incubation/bibliography/test.jsonld") as j:
-#        g.parse(source=j, format="json-ld")
 
     jsonld.set_document_loader(jsonld.requests_document_loader(timeout=5000))
-    with open("../incubation/bibliography/test.jsonld") as j:
+    with open(inputfn, 'r') as j:
+        inputdata = json.load(j)
 
-        jdoc = json.load(j)
-        jdocld = add_context(jdoc, json.loads(CONTEXT))
-        g.parse(data=json.dumps(jsonld.expand(jdocld)), format='json-ld')
+    jdocld = process_input(inputdata, contextfn)
+    with open(f'{outputfn}.jsonld', 'w') as f:
+        json.dump(jdocld, f, indent=2)
 
+    options = {}
+    if base:
+        options['base'] = base
+    output = json.dumps(jsonld.expand(jdocld, options))
+    g.parse(data=output, format='json-ld')
 
     formatted_ttl: str = str(g.serialize(format="turtle"))
-    # print(formatted_ttl)
-    # with open(outputDir + "/" + spec_id + "_" + spreadsheetId + ".ttl", 'w') as fout_ttl:
-    with open("docs.ttl", 'w') as fout_ttl:
-        fout_ttl.write(formatted_ttl + "    ")
-        fout_ttl.close()
-
+    with open(outputfn, 'w') as fout_ttl:
+        fout_ttl.write(formatted_ttl)
+        fout_ttl.write('\n')
 
 
 if __name__ == '__main__':
@@ -96,17 +100,31 @@ if __name__ == '__main__':
     parser.add_argument(
         "-i",
         "--input",
-        help="source file (instead of service)",
+        help="Source file (instead of service)",
+        default="../incubation/bibliography/test.jsonld"
     )
 
     parser.add_argument(
         "-o",
         "--output",
-        help="Output directory",
+        help="Output JSON-LD filename",
+        default='docs.ttl'
     )
 
+    parser.add_argument(
+        '-c',
+        '--context',
+        help='YAML context file',
+        default='../incubation/bibliography/context.yml'
+    )
+
+    parser.add_argument(
+        '-b',
+        '--base',
+        help='Base URI for JSON-LD',
+        default='http://example.org/vocab#'
+    )
 
     args = parser.parse_args()
-    outputDir = None
 
-    main()
+    main(args.input, args.output, args.context, args.base)
