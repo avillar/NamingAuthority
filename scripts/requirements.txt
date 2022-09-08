@@ -4,3 +4,4 @@ rdflib>=6.0.1
 jq
 jsonpath-ng
 PyYAML
+pyld
