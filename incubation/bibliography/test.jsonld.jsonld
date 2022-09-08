@@ -2,7 +2,7 @@
   {
     "@id": "#1",
     "@type": [
-      "http://example.org/vocab2#MyType",
+      "http://example.org/vocab3#MyType",
       "http://www.w3.org/2004/02/skos/core#Concept"
     ],
     "http://www.w3.org/2000/01/rdf-schema#seeAlso": [
@@ -40,12 +40,12 @@
         "@value": "18-088"
       }
     ],
-    "http://example.org/vocab2#language": [
+    "http://example.org/vocab3#language": [
       {
         "@value": "English"
       }
     ],
-    "http://example.org/vocab2#new": [
+    "http://example.org/vocab3#new": [
       {
         "@value": "prop"
       }
@@ -55,7 +55,7 @@
         "@value": "Open Geospatial Consortium"
       }
     ],
-    "http://example.org/vocab2#rights": [
+    "http://example.org/vocab3#rights": [
       {
         "@value": ""
       }
