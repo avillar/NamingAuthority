@@ -45,6 +45,11 @@
         "@value": "English"
       }
     ],
+    "http://example.org/vocab2#new": [
+      {
+        "@value": "prop"
+      }
+    ],
     "http://purl.org/dc/terms/publisher": [
       {
         "@value": "Open Geospatial Consortium"
