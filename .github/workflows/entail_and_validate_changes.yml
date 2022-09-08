@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - avillar/jsonld
   pull_request:
       types: closed
   workflow_dispatch:
