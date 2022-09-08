@@ -4,7 +4,7 @@ import logging
 import argparse
 import re
 import sys
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Tuple
 
 import rdflib
 from rdflib import Graph
@@ -16,6 +16,12 @@ from jsonpath_ng.ext import parse as jsonpathparse
 
 
 def init_graph() -> Graph:
+    """
+    Creates an empty graph with some standard prefixes.
+
+    :return: an empty RDFLib Graph with some prefixes
+    """
+
     g = rdflib.Graph()
     g.bind("dc", DC)
     g.bind("xsd", XSD)
@@ -33,7 +39,18 @@ def init_graph() -> Graph:
     return g
 
 
-def process_input(data: dict, contextfn: str):
+def process_input(data: dict, contextfn: str) -> dict:
+    """
+    Transform a JSON document loaded in a dict, and embed JSON-LD context into it.
+
+    WARNING: This function modifies the input dict. If that is not desired, make a copy
+    before invoking.
+
+    :param data: the JSON document in dict format
+    :param contextfn: YAML context definition filename
+    :return: the transformed and JSON-LD-enriched data
+    """
+
     # Load YAML context file
     from yaml import load
     try:
@@ -68,7 +85,15 @@ def process_input(data: dict, contextfn: str):
     return data
 
 
-def generate_graph(inputfn: str, contextfn: str, base: Optional[str] = None):
+def generate_graph(inputfn: str, contextfn: str, base: Optional[str] = None) -> Tuple[Graph, str]:
+    """
+    Create a graph from an input JSON document and a YAML context definition file.
+
+    :param inputfn: input filename
+    :param contextfn: YAML context definition filename
+    :param base: base URI for JSON-LD context
+    :return: a tuple with the resulting RDFLib Graph and the JSON-LD enriched file
+    """
 
     g = init_graph()
 
@@ -93,6 +118,19 @@ def process(inputfn: str,
             contextfn: Optional[str] = None,
             base: Optional[str] = None,
             skip_on_missing_context: bool = False) -> List[str]:
+    """
+    Process input file and generate output RDF files.
+
+    :param inputfn: input filename
+    :param jsonldfn: output JSON-lD filename (None for automatic).
+        If False, no JSON-LD output will be generated
+    :param ttlfn: output Turtle filename (None for automatic).
+        If False, no Turtle output will be generated.
+    :param contextfn: YAML context filename
+    :param base: base URI for JSON-LD
+    :param skip_on_missing_context: whether to silently fail if no context file is found
+    :return: List of output files created
+    """
 
     if not path.isfile(inputfn):
         raise IOError(f'Input is not a file ({inputfn})')
@@ -148,6 +186,12 @@ def process(inputfn: str,
 
 
 def filename_from_context(contextfn: str) -> Optional[str]:
+    """
+    Tries to find a JSON/JSON-LD file from a given YAML context definition filename
+    :param contextfn: YAML context definition filename
+    :return: corresponding JSON/JSON-LD filename, if found
+    """
+
     basefn = path.splitext(contextfn)[0]
 
     if re.match(r'.*\.json-?(ld)?$', basefn):
