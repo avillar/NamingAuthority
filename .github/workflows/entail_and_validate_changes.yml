@@ -32,6 +32,7 @@ jobs:
           echo "jsona=$jsona" >> $GITHUB_ENV
           echo "jsonm=$jsonm" >> $GITHUB_ENV
       - name: detect file changes
+        if: ${{false}}
         env:
             DB_USERNAME: ${{secrets.DB_USERNAME}}
             DB_PASSWORD: ${{secrets.DB_PASSWORD}}
