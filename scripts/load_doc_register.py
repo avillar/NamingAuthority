@@ -147,6 +147,20 @@ def process(inputfn: str,
     return createdfiles
 
 
+def filename_from_context(contextfn: str) -> Optional[str]:
+    basefn = path.splitext(contextfn)[0]
+
+    if re.match(r'.*\.json-?(ld)?$', basefn):
+        # If removing extension results in a JSON/JSON-LD
+        # filename, try it
+        return basefn if path.isfile(basefn) else None
+
+    # Otherwise check with appended JSON/JSON-LD extensions
+    for e in ('.json', '.jsonld', '.json-ld'):
+        if path.isfile(basefn + e):
+            return fn
+
+
 if __name__ == '__main__':
 
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -217,6 +231,11 @@ if __name__ == '__main__':
     if args.batch:
         print("Input files: {}".format(args.input), file=sys.stderr)
         for fn in args.input.split(','):
+
+            if re.match(r'.*\.ya?ml$', fn):
+                # Context file found, try to find corresponding JSON/JSON-LD file
+                fn = filename_from_context(fn)
+
             if not re.match(r'.*\.json-?(ld)?$', fn):
                 print('File {} does not match, skipping'.format(fn), file=sys.stderr)
                 continue
