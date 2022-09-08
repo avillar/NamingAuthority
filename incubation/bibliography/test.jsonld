@@ -20,8 +20,7 @@
         "dateSubmitted": null,
         "format": "text\/html",
         "hasFormat": null,
-        "extent": null,
-        "new": "prop"
+        "extent": null
     },
     "2": {
         "title": "OGC Technical Paper on the Standards Landscape for Building Data",

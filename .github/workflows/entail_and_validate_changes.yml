@@ -25,8 +25,8 @@ jobs:
         run: |
           a="${{steps.file_changes.outputs.files_added}}"
           m="${{steps.file_changes.outputs.files_modified}}"
-          jsona=$(python scripts/load_doc_register.py --batch --fs ',' -t -j \"$a\")
-          jsonm=$(python scripts/load_doc_register.py --batch --fs ',' -t -j \"$m\")
+          jsona=$(python scripts/load_doc_register.py --batch --fs ',' -t -j "$a")
+          jsonm=$(python scripts/load_doc_register.py --batch --fs ',' -t -j "$m")
           echo "Added JSON-LD files: $jsona"
           echo "Modified JSON-LD files: $jsonm"
           echo "jsona=$jsona" >> $GITHUB_ENV

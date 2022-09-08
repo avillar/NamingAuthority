@@ -220,7 +220,7 @@ if __name__ == '__main__':
             if not re.match(r'.*\.json-?(ld)?$', fn):
                 print('File {} does not match, skipping'.format(fn), file=sys.stderr)
                 continue
-            print('File {} does matches, processing'.format(fn), file=sys.stderr)
+            print('File {} matches, processing'.format(fn), file=sys.stderr)
             try:
                 outputfiles += process(
                     fn,
