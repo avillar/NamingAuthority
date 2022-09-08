@@ -3,6 +3,7 @@ import json
 import logging
 import argparse
 import re
+import sys
 from typing import Union, Optional, List
 
 import rdflib
@@ -147,6 +148,9 @@ def process(inputfn: str,
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input",
@@ -211,9 +215,12 @@ if __name__ == '__main__':
 
     outputfiles = []
     if args.batch:
+        print("Input files: {}".format(args.input), file=sys.stderr)
         for fn in args.input.split(','):
             if not re.match(r'.*\.json-?(ld)?$', fn):
+                print('File {} does not match, skipping'.format(fn), file=sys.stderr)
                 continue
+            print('File {} does matches, processing'.format(fn), file=sys.stderr)
             try:
                 outputfiles += process(
                     fn,
