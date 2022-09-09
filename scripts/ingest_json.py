@@ -4,6 +4,7 @@ import logging
 import argparse
 import re
 import sys
+from collections import deque
 from typing import Union, Optional, List, Tuple
 
 import rdflib
@@ -11,9 +12,10 @@ from rdflib import Graph
 from rdflib.namespace import DC, DCTERMS, SKOS, OWL, RDF, RDFS, XSD, DCAT
 from pyld import jsonld
 import jq
-from os import path
+from os import path, scandir
 from jsonpath_ng.ext import parse as jsonpathparse
 
+logger = logging.getLogger(__name__)
 
 def init_graph() -> Graph:
     """
@@ -116,6 +118,7 @@ def process(inputfn: str,
             jsonldfn: Optional[Union[bool, str]] = False,
             ttlfn: Optional[Union[bool, str]] = False,
             contextfn: Optional[str] = None,
+            context_registry: Optional[dict] = None,
             base: Optional[str] = None,
             skip_on_missing_context: bool = False) -> List[str]:
     """
@@ -126,7 +129,11 @@ def process(inputfn: str,
         If False, no JSON-LD output will be generated
     :param ttlfn: output Turtle filename (None for automatic).
         If False, no Turtle output will be generated.
-    :param contextfn: YAML context filename
+    :param contextfn: YAML context filename. If None, will be autodetected:
+        1. From a file with the same name but yml/yaml extension (test.json -> test.yml)
+        2. From a _json-context.yml/_json-context.yaml file in the same directory
+    :param context_registry: dict with filename:yamlContextFilename mappings. Will be ignored
+        if contextfn is provided
     :param base: base URI for JSON-LD
     :param skip_on_missing_context: whether to silently fail if no context file is found
     :return: List of output files created
@@ -138,19 +145,11 @@ def process(inputfn: str,
     inputbase, inputext = path.splitext(inputfn)
 
     if not contextfn:
-        # Autodiscover context
-        for cfn in [
-            f'{inputfn}.yml',
-            f'{inputfn}.yaml',
-            f'{inputbase}.yaml',
-            f'{inputbase}.yml',
-        ]:
-            if path.isfile(cfn):
-                contextfn = cfn
-                break
+        contextfn = find_context_filename(inputfn, context_registry)
+
     if not contextfn:
         if skip_on_missing_context:
-            logging.warning("No context file provided and one could not be discovered automatically. Skipping...")
+            logger.warning("No context file provided and one could not be discovered automatically. Skipping...")
             return []
         raise Exception('No context file provided and one could not be discovered automatically')
 
@@ -185,24 +184,72 @@ def process(inputfn: str,
     return createdfiles
 
 
-def filename_from_context(contextfn: str) -> Optional[str]:
+def find_context_filename(filename, registry: Optional[dict]) -> Optional[str]:
     """
-    Tries to find a JSON/JSON-LD file from a given YAML context definition filename
+    Find the YAML context file for a given filename, with the following precedence:
+        1. Search in registry (if provided)
+        2. Search file with same base name but with yaml/yml extension.
+        3. Find _json-context.yml/yaml file in same directory
+    :param filename: the filename for which to find the context
+    :param registry: an optional filename:yamlContextFile mapping
+    :return: the YAML context definition filename
+    """
+
+    # 1. Registry lookup
+    if registry and filename in registry:
+        return registry[filename]
+
+    # 2. Same filename with yml/yaml extension or autodetect in dir
+    base, ext = path.splitext(filename)
+    dirname = path.dirname(filename)
+
+    for cfn in [
+        f'{filename}.yml',
+        f'{filename}.yaml',
+        f'{base}.yaml',
+        f'{base}.yml',
+        path.join(dirname, '_json-context.yml'),
+        path.join(dirname, '_json-context.yaml'),
+    ]:
+        if path.isfile(cfn):
+            logger.info(f'Autodetected context {cfn} for file {filename}')
+            return cfn
+
+
+def filenames_from_context(contextfn: str, registry: Optional[dict]) -> Optional[List[str]]:
+    """
+    Tries to find a JSON/JSON-LD file from a given YAML context definition filename.
+    Priority:
+      1. Context file in registry (if registry present)
+      2. Context file with same name as JSON doc (e.g. test.yml/test.json)
+      3. Context file in directory (_json-context.yml or _json-context.yaml)
     :param contextfn: YAML context definition filename
+    :param registry: dict of jsonFile:yamlContextFile mappings
     :return: corresponding JSON/JSON-LD filename, if found
     """
 
-    basefn = path.splitext(contextfn)[0]
+    # 1. Reverse lookup in registry
+    if registry:
+        found = [k for k, v in registry.items() if v == contextfn]
+        if found:
+            return found
 
+    # 2. Lookup by matching filename
+    basefn = path.splitext(contextfn)[0]
     if re.match(r'.*\.json-?(ld)?$', basefn):
         # If removing extension results in a JSON/JSON-LD
         # filename, try it
         return basefn if path.isfile(basefn) else None
-
     # Otherwise check with appended JSON/JSON-LD extensions
     for e in ('.json', '.jsonld', '.json-ld'):
         if path.isfile(basefn + e):
             return fn
+
+    # 3. If directory context file, all .json files in directory
+    dirname, ctxfn = path.split(contextfn)
+    if re.matches(r'_json-context\.ya?ml', ctxfn):
+        with scandir(dirname) as it:
+            return [x.path for x in it if x.is_file() and x.name.endswith('.json')]
 
 
 if __name__ == '__main__':
@@ -269,37 +316,53 @@ if __name__ == '__main__':
         help='File separator for formatting list of output files (no output by default)',
     )
 
+    parser.add_argument(
+        '-r',
+        '--context-registry',
+        help='JSON context registry file containing an object of jsonFile:yamlContextFile pairs'
+    )
+
     args = parser.parse_args()
+
+    context_registry = None
+    if args.context_registry:
+        with open(args.context_registry, 'r') as f:
+            context_registry = json.load(f)
 
     outputfiles = []
     if args.batch:
-        print("Input files: {}".format(args.input), file=sys.stderr)
-        for fn in args.input.split(','):
+        logger.info("Input files: {}".format(args.input))
+        remaining_fn: deque = deque(args.input.split(','))
+        while remaining_fn:
+            fn = remaining_fn.popleft()
 
             if re.match(r'.*\.ya?ml$', fn):
-                # Context file found, try to find corresponding JSON/JSON-LD file
-                fn = filename_from_context(fn)
+                # Context file found, try to find corresponding JSON/JSON-LD file(s)
+                remaining_fn.extend(filenames_from_context(fn, context_registry))
+                continue
 
             if not re.match(r'.*\.json-?(ld)?$', fn):
-                print('File {} does not match, skipping'.format(fn), file=sys.stderr)
+                logger.debug('File {} does not match, skipping'.format(fn), file=sys.stderr)
                 continue
-            print('File {} matches, processing'.format(fn), file=sys.stderr)
+            logger.info('File {} matches, processing'.format(fn), file=sys.stderr)
             try:
                 outputfiles += process(
                     fn,
                     jsonldfn=None if args.json_ld else False,
                     ttlfn=None if args.ttl else False,
                     contextfn=None,
+                    context_registry=context_registry,
                     base=args.base_uri,
                     skip_on_missing_context=True
                 )
             except Exception as e:
-                logging.warning("Error processing JSON/JSON-LD file, skipping: %s", str(e))
+                logger.warning("Error processing JSON/JSON-LD file, skipping: %s", str(e))
     else:
         outputfiles += process(args.input,
             jsonldfn=args.json_ld_file if args.json_ld else False,
             ttlfn=args.ttl_file if args.ttl else False,
             contextfn=args.context,
+            context_registry=context_registry,
             base=args.base_uri,
             skip_on_missing_context=args.skip_on_missing_context,
         )
