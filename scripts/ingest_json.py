@@ -196,8 +196,10 @@ def find_context_filename(filename, registry: Optional[dict]) -> Optional[str]:
     """
 
     # 1. Registry lookup
-    if registry and filename in registry:
-        return registry[filename]
+    if registry:
+        for doc, yml in registry.items():
+            if path.samefile(doc, filename):
+                return yml
 
     # 2. Same filename with yml/yaml extension or autodetect in dir
     base, ext = path.splitext(filename)
@@ -230,7 +232,7 @@ def filenames_from_context(contextfn: str, registry: Optional[dict]) -> Optional
 
     # 1. Reverse lookup in registry
     if registry:
-        found = [k for k, v in registry.items() if v == contextfn]
+        found = [k for k, v in registry.items() if path.samefile(v, contextfn)]
         if found:
             return found
 
@@ -239,17 +241,22 @@ def filenames_from_context(contextfn: str, registry: Optional[dict]) -> Optional
     if re.match(r'.*\.json-?(ld)?$', basefn):
         # If removing extension results in a JSON/JSON-LD
         # filename, try it
-        return basefn if path.isfile(basefn) else None
+        return basefn if basefn not in registry and path.isfile(basefn) else None
     # Otherwise check with appended JSON/JSON-LD extensions
     for e in ('.json', '.jsonld', '.json-ld'):
-        if path.isfile(basefn + e):
+        if basefn not in registry and path.isfile(basefn + e):
             return fn
 
     # 3. If directory context file, all .json files in directory
+    # NOTE: no .jsonld or .json-ld files, since those could come
+    #   from the output of this very script
+    # NOTE: excluding those files present in the registry
     dirname, ctxfn = path.split(contextfn)
-    if re.matches(r'_json-context\.ya?ml', ctxfn):
+    if re.match(r'_json-context\.ya?ml', ctxfn):
         with scandir(dirname) as it:
-            return [x.path for x in it if x.is_file() and x.name.endswith('.json')]
+            return [x.path for x in it
+                    if (x.is_file() and x.name.endswith('.json')
+                        and not any(path.samefile(x, y) for y in registry))]
 
 
 if __name__ == '__main__':
@@ -324,10 +331,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    context_registry = None
+    context_registry = {}
     if args.context_registry:
+        regdir = path.dirname(args.context_registry)
+        norm = lambda x: path.abspath(path.normpath(path.join(regdir, x)))
         with open(args.context_registry, 'r') as f:
-            context_registry = json.load(f)
+            context_registry = {norm(doc): norm(yml) for doc, yml in json.load(f).items()}
 
     outputfiles = []
     if args.batch:
@@ -342,9 +351,9 @@ if __name__ == '__main__':
                 continue
 
             if not re.match(r'.*\.json-?(ld)?$', fn):
-                logger.debug('File {} does not match, skipping'.format(fn), file=sys.stderr)
+                logger.debug('File %s does not match, skipping', fn)
                 continue
-            logger.info('File {} matches, processing'.format(fn), file=sys.stderr)
+            logger.info('File %s matches, processing', fn)
             try:
                 outputfiles += process(
                     fn,
