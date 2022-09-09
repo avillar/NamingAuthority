@@ -5,3 +5,4 @@ jq
 jsonpath-ng
 PyYAML
 pyld
+wcmatch
