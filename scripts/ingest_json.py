@@ -164,7 +164,7 @@ def init_graph() -> Graph:
     return g
 
 
-def process_input(data: dict, contextfn: str) -> dict:
+def process_input(data: dict, context: dict) -> dict:
     """
     Transform a JSON document loaded in a dict, and embed JSON-LD context into it.
 
@@ -172,23 +172,18 @@ def process_input(data: dict, contextfn: str) -> dict:
     before invoking.
 
     :param data: the JSON document in dict format
-    :param contextfn: YAML context definition filename
+    :param context: YAML context definition
     :return: the transformed and JSON-LD-enriched data
     """
-
-    # Load YAML context file
-    from yaml import load
-    try:
-        from yaml import CLoader as Loader
-    except ImportError:
-        from yaml import Loader
-    with open(contextfn, 'r') as f:
-        context = load(f, Loader=Loader)
 
     # Check if pre-transform necessary
     transform = context.get('transform')
     if transform:
-        data = json.loads(jq.compile(transform).input(data).text())
+        # Allow for transform lists to do sequential transformations
+        if isinstance(transform, str):
+            transform = (transform,)
+        for t in transform:
+            data = json.loads(jq.compile(t).input(data).text())
 
     # Add contexts
     context_list = context.get('context', {})
@@ -226,7 +221,16 @@ def generate_graph(inputfn: str, contextfn: str, base: Optional[str] = None) -> 
     with open(inputfn, 'r') as j:
         inputdata = json.load(j)
 
-    jdocld = process_input(inputdata, contextfn)
+    # Load YAML context file
+    from yaml import load
+    try:
+        from yaml import CLoader as Loader
+    except ImportError:
+        from yaml import Loader
+    with open(contextfn, 'r') as f:
+        context = load(f, Loader=Loader)
+
+    jdocld = process_input(inputdata, context)
 
     options = {}
     if base:
