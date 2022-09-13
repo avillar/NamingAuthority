@@ -185,6 +185,20 @@ def transform_json(data: dict, context: dict) -> dict:
         for t in transform:
             data = json.loads(jq.compile(t).input(data).text())
 
+    # Add types
+    types = context.get('types', {})
+    for loc, typelist in types.items():
+        items = jsonpathparse(loc).find(data)
+        if isinstance(typelist, str):
+            typelist = [typelist]
+        for item in items:
+            existing = item.value.get('@type', [])
+            if isinstance(existing, str):
+                item.value['@type'] = [existing] + typelist
+            else:
+                item.value['@type'].extend(typelist)
+
+
     # Add contexts
     context_list = context.get('context', {})
     global_context = None
@@ -235,6 +249,10 @@ def generate_graph(inputfn: str, contextfn: str, base: Optional[str] = None) -> 
     options = {}
     if base:
         options['base'] = base
+    elif context.get('base-uri'):
+        options['base'] = context['base-uri']
+    elif '@context' in jdocld and jdocld['@context'].get('@base'):
+        options['base'] = jdocld['@context']['@base']
     output = json.dumps(jsonld.expand(jdocld, options), indent=2)
     g.parse(data=output, format='json-ld')
 
@@ -415,8 +433,8 @@ def process(inputfiles: str,
             try:
                 result += process_file(
                     fn,
-                    jsonldfn=jsonldfn,
-                    ttlfn=ttlfn,
+                    jsonldfn=None if jsonldfn else False,
+                    ttlfn=None if ttlfn else False,
                     contextfn=None,
                     context_registry=context_registry,
                     base=base,
