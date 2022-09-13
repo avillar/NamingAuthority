@@ -164,7 +164,7 @@ def init_graph() -> Graph:
     return g
 
 
-def process_input(data: dict, context: dict) -> dict:
+def transform_json(data: dict, context: dict) -> dict:
     """
     Transform a JSON document loaded in a dict, and embed JSON-LD context into it.
 
@@ -230,7 +230,7 @@ def generate_graph(inputfn: str, contextfn: str, base: Optional[str] = None) -> 
     with open(contextfn, 'r') as f:
         context = load(f, Loader=Loader)
 
-    jdocld = process_input(inputdata, context)
+    jdocld = transform_json(inputdata, context)
 
     options = {}
     if base:
@@ -241,13 +241,13 @@ def generate_graph(inputfn: str, contextfn: str, base: Optional[str] = None) -> 
     return g, output
 
 
-def process(inputfn: str,
-            jsonldfn: Optional[Union[bool, str]] = False,
-            ttlfn: Optional[Union[bool, str]] = False,
-            contextfn: Optional[str] = None,
-            context_registry: Optional[IContextRegistry] = None,
-            base: Optional[str] = None,
-            skip_on_missing_context: bool = False) -> List[str]:
+def process_file(inputfn: str,
+                 jsonldfn: Optional[Union[bool, str]] = False,
+                 ttlfn: Optional[Union[bool, str]] = False,
+                 contextfn: Optional[str] = None,
+                 context_registry: Optional[IContextRegistry] = None,
+                 base: Optional[str] = None,
+                 skip_on_missing_context: bool = False) -> List[str]:
     """
     Process input file and generate output RDF files.
 
@@ -371,8 +371,9 @@ def filenames_from_context(contextfn: str, registry: Optional[IContextRegistry])
         return basefn if not registry.has_filename(basefn) and path.isfile(basefn) else None
     # Otherwise check with appended JSON/JSON-LD extensions
     for e in ('.json', '.jsonld', '.json-ld'):
-        if not registry.has_filename(basefn) and path.isfile(basefn + e):
-            return fn
+        jsonfn = basefn + e
+        if not registry.has_filename(jsonfn) and path.isfile(jsonfn):
+            return jsonfn
 
     # 3. If directory context file, all .json files in directory
     # NOTE: no .jsonld or .json-ld files, since those could come
@@ -386,10 +387,58 @@ def filenames_from_context(contextfn: str, registry: Optional[IContextRegistry])
                         and not registry.has_filename(x))]
 
 
-if __name__ == '__main__':
+def process(inputfiles: str,
+            context_registry: Optional[IContextRegistry] = None,
+            contextfn: Optional[str] = None,
+            jsonldfn: Optional[Union[bool, str]] = False,
+            ttlfn: Optional[Union[bool, str]] = False,
+            batch: bool = False,
+            base: str = None,
+            skip_on_missing_context: bool = False):
+    result = []
+    if batch:
+        logger.info("Input files: %s", inputfiles)
+        remaining_fn: deque = deque(inputfiles.split(','))
+        while remaining_fn:
+            fn = remaining_fn.popleft()
 
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+            if re.match(r'.*\.ya?ml$', fn):
+                # Context file found, try to find corresponding JSON/JSON-LD file(s)
+                logger.info('Potential YAML context file found: %s', fn)
+                remaining_fn.extend(filenames_from_context(fn, context_registry))
+                continue
 
+            if not re.match(r'.*\.json-?(ld)?$', fn):
+                logger.debug('File %s does not match, skipping', fn)
+                continue
+            logger.info('File %s matches, processing', fn)
+            try:
+                result += process_file(
+                    fn,
+                    jsonldfn=jsonldfn,
+                    ttlfn=ttlfn,
+                    contextfn=None,
+                    context_registry=context_registry,
+                    base=base,
+                    skip_on_missing_context=True
+                )
+            except Exception as e:
+                logger.warning("Error processing JSON/JSON-LD file, skipping: %s", str(e))
+    else:
+        result += process_file(
+            inputfiles,
+            jsonldfn=jsonldfn,
+            ttlfn=ttlfn,
+            contextfn=contextfn,
+            context_registry=context_registry,
+            base=base,
+            skip_on_missing_context=skip_on_missing_context,
+        )
+
+    return result
+
+
+def _process_cmdln():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input",
@@ -461,45 +510,26 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     context_registry = ContextRegistryList(*(ContextRegistry(c) for c in args.context_registry))
-    print(context_registry)
 
-    outputfiles = []
-    if args.batch:
-        logger.info("Input files: {}".format(args.input))
-        remaining_fn: deque = deque(args.input.split(','))
-        while remaining_fn:
-            fn = remaining_fn.popleft()
-
-            if re.match(r'.*\.ya?ml$', fn):
-                # Context file found, try to find corresponding JSON/JSON-LD file(s)
-                remaining_fn.extend(filenames_from_context(fn, context_registry))
-                continue
-
-            if not re.match(r'.*\.json-?(ld)?$', fn):
-                logger.debug('File %s does not match, skipping', fn)
-                continue
-            logger.info('File %s matches, processing', fn)
-            try:
-                outputfiles += process(
-                    fn,
-                    jsonldfn=None if args.json_ld else False,
-                    ttlfn=None if args.ttl else False,
-                    contextfn=None,
-                    context_registry=context_registry,
-                    base=args.base_uri,
-                    skip_on_missing_context=True
-                )
-            except Exception as e:
-                logger.warning("Error processing JSON/JSON-LD file, skipping: %s", str(e))
-    else:
-        outputfiles += process(args.input,
-            jsonldfn=args.json_ld_file if args.json_ld else False,
-            ttlfn=args.ttl_file if args.ttl else False,
-            contextfn=args.context,
-            context_registry=context_registry,
-            base=args.base_uri,
-            skip_on_missing_context=args.skip_on_missing_context,
-        )
+    outputfiles = process(args.input,
+                          contextfn=args.context,
+                          context_registry=context_registry,
+                          jsonldfn=args.json_ld,
+                          ttlfn=args.ttl,
+                          batch=args.batch,
+                          base=args.base_uri,
+                          skip_on_missing_context=args.skip_on_missing_context)
 
     if args.fs:
         print(args.fs.join(outputfiles))
+
+
+if __name__ == '__main__':
+
+    logging.basicConfig(
+        stream=sys.stderr,
+        level=logging.INFO,
+        format='%(asctime)s,%(msecs)d %(levelname)-5s [%(filename)s:%(lineno)d] %(message)s',
+    )
+
+    _process_cmdln()
