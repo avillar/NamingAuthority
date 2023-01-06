@@ -816,20 +816,20 @@
     skos:prefLabel "Enterprise Architecture SIG" .
 
 [] a prov:Activity ;
-    prov:endedAtTime "2023-01-06T12:51:12.996718"^^xsd:dateTime ;
-    prov:startedAtTime "2023-01-06T12:51:12.534260"^^xsd:dateTime ;
+    prov:endedAtTime "2023-01-06T12:55:47.918906"^^xsd:dateTime ;
+    prov:startedAtTime "2023-01-06T12:55:47.455031"^^xsd:dateTime ;
     prov:used [ a prov:Entity ;
             dct:format "application/json" ;
-            dct:hasVersion "git:3ae6dd84b6d0682b5d2a9aaca608f8afde1494fe" ;
+            dct:hasVersion "git:773d20f2664ae09d478cdca06654c1dd584567fd" ;
             rdfs:seeAlso <file:///home/runner/work/NamingAuthority/NamingAuthority/incubation/working-groups/working-groups.json> ],
         [ a prov:Entity ;
             dct:format "application/yaml" ;
-            dct:hasVersion "git:3ae6dd84b6d0682b5d2a9aaca608f8afde1494fe" ;
+            dct:hasVersion "git:773d20f2664ae09d478cdca06654c1dd584567fd" ;
             rdfs:seeAlso <file:///home/runner/work/NamingAuthority/NamingAuthority/incubation/working-groups/working-groups.yml> ] ;
     prov:wasAssociatedWith [ a prov:Agent,
                 <https://schema.org/SoftwareApplication> ;
             rdfs:label "OGC-NA tools" ;
             dct:hasVersion "0.1.dev40+gd2bc441" ;
             rdfs:seeAlso <https://github.com/opengeospatial/ogc-na-tools> ] ;
-    prov:wasInformedBy [ dct:identifier "0592bdb0-1a75-4338-a6e8-71b7deb8a49e" ] .
+    prov:wasInformedBy [ dct:identifier "b5591a52-de5f-432f-8444-01ab0561ae5f" ] .
 
