@@ -30,6 +30,10 @@ jobs:
         run: |
           a="${{inputs.files-added}}"
           m="${{inputs.files-modified}}"
+          pwd
+          ls -l
+          echo $a | hexdump -C
+          echo $m | hexdump -C
           jsona=$(python -m ogc.na.ingest_json --batch --fs ',' -t -j "$a")
           jsonm=$(python -m ogc.na.ingest_json --batch --fs ',' -t -j "$m")
           echo "Added JSON-LD files: $jsona"
