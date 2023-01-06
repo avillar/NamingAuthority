@@ -34,4 +34,5 @@ jobs:
       files-added: ${{ needs.changes.outputs.files-added }}
       files-modified: ${{ needs.changes.outputs.files-modified }}
       files-removed: ${{ needs.changes.outputs.files-removed }}
+      repo-ref: ${{ github.ref_name }}
 
