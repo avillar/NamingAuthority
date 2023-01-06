@@ -8,6 +8,10 @@ on:
         type: string
       files-removed:
         type: string
+      repo-ref:
+        description: 'Branch, tag or commit'
+        type: string
+        default: 'master'
   workflow_dispatch:
     inputs:
       files-added:
