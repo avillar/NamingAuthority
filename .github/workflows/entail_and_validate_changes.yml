@@ -55,12 +55,9 @@ jobs:
           a="${{inputs.files-added}},$jsona"
           m="${{inputs.files-modified}},$jsonm"
           r="${{inputs.files-removed}}"
-          echo A: $a
-          echo M: $m
           if [ -z $a ]; then a="x"; fi
           if [ -z $m ]; then m="x"; fi
           if [ -z $r ]; then r="x"; fi
-          echo python scripts/update_vocabs.py -u -a "$a" -m "$m" -r "$r"
           python scripts/update_vocabs.py -u -a "$a" -m "$m" -r "$r"
       - name: commit serialised versions of concept schemes
         uses: EndBug/add-and-commit@v7 # You can change this to use a specific version
