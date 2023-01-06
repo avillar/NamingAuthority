@@ -30,7 +30,8 @@ jobs:
     steps:
       - name: Bring in repo
         uses: actions/checkout@v3
-        ref: ${{ inputs.repo-ref }}
+        with:
+          ref: ${{ inputs.repo-ref }}
       - name: install Python dependencies
         run: |
           python -m pip install -U pip
