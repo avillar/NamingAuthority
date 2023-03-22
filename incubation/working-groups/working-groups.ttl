@@ -224,9 +224,9 @@ bodies:290 a policy:Swg,
 
 bodies:292 a policy:Swg,
         skos:Concept ;
-    rdfs:label "O&M SWG" ;
+    rdfs:label "Observations & Measurements SWG" ;
     skos:inScheme <http://www.opengis.net/def/entities/bodies> ;
-    skos:prefLabel "O&M SWG" .
+    skos:prefLabel "Observations & Measurements SWG" .
 
 bodies:293 a policy:Swg,
         skos:Concept ;
@@ -817,20 +817,20 @@ bodies:98 a policy:Body,
     skos:prefLabel "Enterprise Architecture SIG" .
 
 [] a prov:Activity ;
-    prov:endedAtTime "2023-02-21T03:22:03.667535"^^xsd:dateTime ;
-    prov:startedAtTime "2023-02-21T03:22:03.289086"^^xsd:dateTime ;
+    prov:endedAtTime "2023-03-22T03:16:14.302055"^^xsd:dateTime ;
+    prov:startedAtTime "2023-03-22T03:16:13.777552"^^xsd:dateTime ;
     prov:used [ a prov:Entity ;
-            dct:format "application/json" ;
-            dct:hasVersion "git:4c0d15153ce67fe2b0aa6eac8e8a94e3f3edf62b" ;
-            rdfs:seeAlso <file:///home/runner/work/NamingAuthority/NamingAuthority/incubation/working-groups/working-groups.json> ],
-        [ a prov:Entity ;
             dct:format "application/yaml" ;
-            dct:hasVersion "git:4c0d15153ce67fe2b0aa6eac8e8a94e3f3edf62b" ;
-            rdfs:seeAlso <file:///home/runner/work/NamingAuthority/NamingAuthority/incubation/working-groups/working-groups.yml> ] ;
+            dct:hasVersion "git:4771d8fddfa6ff20a74ef7ffa8b7ea3dd45b2904" ;
+            rdfs:seeAlso <file:///home/runner/work/NamingAuthority/NamingAuthority/incubation/working-groups/working-groups.yml> ],
+        [ a prov:Entity ;
+            dct:format "application/json" ;
+            dct:hasVersion "git:4771d8fddfa6ff20a74ef7ffa8b7ea3dd45b2904" ;
+            rdfs:seeAlso <file:///home/runner/work/NamingAuthority/NamingAuthority/incubation/working-groups/working-groups.json> ] ;
     prov:wasAssociatedWith [ a prov:Agent,
                 <https://schema.org/SoftwareApplication> ;
             rdfs:label "OGC-NA tools" ;
-            dct:hasVersion "0.1.dev53+ga84ad96" ;
+            dct:hasVersion "0.1.dev62+g1c97c98" ;
             rdfs:seeAlso <https://github.com/opengeospatial/ogc-na-tools> ] ;
-    prov:wasInformedBy [ dct:identifier "d91cbcea-8eb3-44f1-b3eb-9d00a3698116" ] .
+    prov:wasInformedBy [ dct:identifier "1f1d04df-9fbe-4805-92ef-fe2377cc81c8" ] .
 
